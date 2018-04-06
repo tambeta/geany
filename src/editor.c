@@ -3282,7 +3282,7 @@ gint editor_do_comment(GeanyEditor *editor, gint line, gboolean allow_empty_line
 		gboolean single_comment)
 {
 	gint first_line, last_line;
-	gint x, i, line_start, line_len;
+	gint x, minx, i, line_start, line_len;
 	gint sel_start, sel_end, co_len;
 	gint count = 0;
 	gchar sel[256];
@@ -3320,6 +3320,30 @@ gint editor_do_comment(GeanyEditor *editor, gint line, gboolean allow_empty_line
 
 	sci_start_undo_action(editor->sci);
 
+	/* find block's minimum indentation */
+	minx = G_MAXINT;
+	
+	if (ft->comment_use_indent) 
+	{
+		for (i = first_line; i <= last_line; i++)
+		{
+			gchar *linebuf;
+			
+			x = 0;
+			linebuf = sci_get_line(editor->sci, i);
+			g_strdelimit(linebuf, "\r\n", '\0');
+			while (isspace(linebuf[x])) x++;
+			
+			/* omit blank lines from minimum indentation calculation, if not allowed */
+			if (x < minx && (allow_empty_lines || linebuf[x] != '\0'))
+				minx = x;
+			g_free(linebuf);
+		}
+	}
+
+	if (minx == G_MAXINT)
+		minx = 0;
+
 	for (i = first_line; (i <= last_line) && (! break_loop); i++)
 	{
 		gint buf_len;
@@ -3346,7 +3370,7 @@ gint editor_do_comment(GeanyEditor *editor, gint line, gboolean allow_empty_line
 				single_line = TRUE;
 
 				if (ft->comment_use_indent)
-					start = line_start + x;
+					start = line_start + minx;
 
 				if (toggle)
 				{
